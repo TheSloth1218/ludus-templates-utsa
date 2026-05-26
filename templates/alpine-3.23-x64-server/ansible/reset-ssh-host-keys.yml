@@ -1,0 +1,44 @@
+- name: Create and enable SSH host keys regeneration service
+  hosts: all
+  become: true
+  tasks:
+    - name: Create OpenRC service for SSH host key regeneration
+      ansible.builtin.copy:
+        dest: /etc/init.d/regenerate_ssh_host_keys
+        content: |
+          #!/sbin/openrc-run
+
+          description="Regenerate SSH host keys"
+
+          depend() {
+              need localmount
+              before sshd
+          }
+
+          start() {
+              ebegin "Regenerating SSH host keys"
+              rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub
+              /usr/bin/ssh-keygen -A
+              rc-update del regenerate_ssh_host_keys default >/dev/null 2>&1 || true
+              rm -f /etc/init.d/regenerate_ssh_host_keys
+              eend 0
+          }
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Enable SSH host keys regeneration service
+      ansible.builtin.command: rc-update add regenerate_ssh_host_keys default
+      changed_when: true
+
+    - name: Remove current SSH host keys from template
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/ssh/ssh_host_ecdsa_key
+        - /etc/ssh/ssh_host_ecdsa_key.pub
+        - /etc/ssh/ssh_host_ed25519_key
+        - /etc/ssh/ssh_host_ed25519_key.pub
+        - /etc/ssh/ssh_host_rsa_key
+        - /etc/ssh/ssh_host_rsa_key.pub

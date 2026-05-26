@@ -1,0 +1,20 @@
+KEYMAPOPTS="us us"
+HOSTNAMEOPTS="-n alpine"
+DEVDOPTS="mdev"
+INTERFACESOPTS="auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+    hostname alpine
+"
+DNSOPTS="none"
+TIMEZONEOPTS="-z UTC"
+PROXYOPTS="none"
+APKREPOSOPTS="-1 -c"
+USEROPTS="-a -u -g wheel localuser"
+SSHDOPTS="-c openssh"
+NTPOPTS="-c chrony"
+DISKOPTS="-m sys -s 0 /dev/sda"
+LBUOPTS="none"
+APKCACHEOPTS="none"
