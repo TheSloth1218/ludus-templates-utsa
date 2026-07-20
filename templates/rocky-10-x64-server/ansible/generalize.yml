@@ -1,0 +1,102 @@
+---
+- name: Generalize Rocky Linux 10 template
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Find existing SSH host keys
+      ansible.builtin.find:
+        paths: /etc/ssh
+        recurse: false
+        file_type: file
+        use_regex: true
+        patterns: '^ssh_host_.*'
+      register: rocky_ssh_host_keys
+
+    - name: Remove existing SSH host keys
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ rocky_ssh_host_keys.files }}"
+
+    - name: Clear system machine ID
+      ansible.builtin.copy:
+        dest: /etc/machine-id
+        content: ""
+        owner: root
+        group: root
+        mode: "0444"
+
+    - name: Remove D-Bus machine ID
+      ansible.builtin.file:
+        path: /var/lib/dbus/machine-id
+        state: absent
+
+    - name: Find NetworkManager connection profiles
+      ansible.builtin.find:
+        paths: /etc/NetworkManager/system-connections
+        recurse: false
+        file_type: file
+        patterns: '*.nmconnection'
+      register: rocky_nm_profiles
+
+    - name: Remove cloned identity fields from NetworkManager profiles
+      ansible.builtin.shell: |
+        set -eu
+        sed -i \
+          -e '/^uuid=/d' \
+          -e '/^timestamp=/d' \
+          -e '/^mac-address=/d' \
+          -e '/^cloned-mac-address=/d' \
+          -e '/^dhcp-client-id=/d' \
+          -e '/^iaid=/d' \
+          "{{ item.path }}"
+      args:
+        executable: /bin/bash
+      loop: "{{ rocky_nm_profiles.files }}"
+      changed_when: true
+
+    - name: Remove NetworkManager runtime state
+      ansible.builtin.file:
+        path: /var/lib/NetworkManager
+        state: absent
+
+    - name: Recreate NetworkManager runtime directory
+      ansible.builtin.file:
+        path: /var/lib/NetworkManager
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Remove system random seed
+      ansible.builtin.file:
+        path: /var/lib/systemd/random-seed
+        state: absent
+
+    - name: Clean DNF metadata
+      ansible.builtin.command:
+        cmd: dnf clean all
+      changed_when: true
+
+    - name: Remove temporary and cached files
+      ansible.builtin.shell: |
+        set -eu
+        rm -rf /tmp/*
+        rm -rf /var/tmp/*
+        rm -rf /var/cache/dnf/*
+        rm -rf /root/.cache
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Clear reusable-image logs
+      ansible.builtin.shell: |
+        set -eu
+        find /var/log -type f \
+          ! -path '/var/log/rocky10-kickstart-post.log' \
+          -exec truncate -s 0 {} \; 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      changed_when: true
