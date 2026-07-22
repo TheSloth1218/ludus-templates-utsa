@@ -11,6 +11,10 @@ runs an Ansible module plus read-only account, ownership, mode, Python, and
 non-interactive sudo checks. A template build must fail rather than publish an
 image when any part of that contract regresses.
 
+The Proxmox builder also waits one minute for the Alpine live ISO login prompt
+before entering `root`. This keeps commands from being typed into the username
+field when ISO startup or backing storage is slower than usual.
+
 ## Replace the built image
 
 Existing linked clones must be destroyed before removing their base template.
