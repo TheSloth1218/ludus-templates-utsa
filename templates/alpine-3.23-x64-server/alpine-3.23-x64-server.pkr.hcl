@@ -86,8 +86,13 @@ locals {
 }
 
 source "proxmox-iso" "alpine323" {
+  # Wait for the live ISO to reach its login prompt before sending credentials.
+  # The prior default 10-second builder wait plus an inline 10-second wait was
+  # too short on slower Proxmox storage, causing the DHCP command to be entered
+  # as the login name.
+  boot_wait = "1m"
   boot_command = [
-    "<wait10>root<enter><wait5>",
+    "root<enter><wait5>",
     "ifconfig eth0 up && udhcpc -i eth0<enter><wait5>",
     "wget http://{{ .HTTPIP }}:{{ .HTTPPort }}/install.sh -O /tmp/install.sh<enter><wait>",
     "sh /tmp/install.sh http://{{ .HTTPIP }}:{{ .HTTPPort }}/answers<enter>"
