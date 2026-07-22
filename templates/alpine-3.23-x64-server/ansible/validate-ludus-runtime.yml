@@ -1,0 +1,50 @@
+---
+- name: Validate the Alpine template's Ludus deployment contract
+  hosts: all
+  gather_facts: false
+  become: false
+  tasks:
+    # This module transfer is intentional. Packer supplies ansible_remote_tmp
+    # as /home/ludus/.ansible/tmp, so the build fails here if a future change
+    # makes that path inaccessible to localuser again.
+    - name: Prove Python module transfer through the Ludus remote temp path
+      ansible.builtin.ping:
+
+    - name: Read the template account database without mutation
+      ansible.builtin.slurp:
+        src: /etc/passwd
+      register: alpine_ludus_localuser
+
+    - name: Inspect the exact Ludus remote temp directory
+      ansible.builtin.stat:
+        path: /home/ludus/.ansible/tmp
+      register: alpine_ludus_remote_tmp
+
+    - name: Prove non-interactive privilege escalation
+      ansible.builtin.command:
+        argv:
+          - sudo
+          - -n
+          - id
+          - -u
+      register: alpine_ludus_sudo
+      changed_when: false
+
+    - name: Require the complete Ludus-compatible Alpine bootstrap contract
+      ansible.builtin.assert:
+        that:
+          - >-
+            'localuser:x:' in (alpine_ludus_localuser.content | b64decode) or
+            'localuser:*:' in (alpine_ludus_localuser.content | b64decode)
+          - >-
+            ':/home/localuser:/bin/ash' in
+            (alpine_ludus_localuser.content | b64decode)
+          - alpine_ludus_remote_tmp.stat.exists
+          - alpine_ludus_remote_tmp.stat.isdir
+          - alpine_ludus_remote_tmp.stat.pw_name == 'localuser'
+          - alpine_ludus_remote_tmp.stat.gr_name == 'localuser'
+          - alpine_ludus_remote_tmp.stat.mode == '0700'
+          - alpine_ludus_sudo.stdout == '0'
+        fail_msg: >-
+          The Alpine image does not satisfy the Ludus SSH, Python, remote-temp,
+          or non-interactive sudo contract and must not be published.
