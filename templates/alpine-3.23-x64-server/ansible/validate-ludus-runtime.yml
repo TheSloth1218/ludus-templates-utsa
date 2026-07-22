@@ -37,6 +37,8 @@
             'localuser:x:' in (alpine_ludus_localuser.content | b64decode) or
             'localuser:*:' in (alpine_ludus_localuser.content | b64decode)
           - >-
+            ':/home/localuser:/bin/sh' in
+            (alpine_ludus_localuser.content | b64decode) or
             ':/home/localuser:/bin/ash' in
             (alpine_ludus_localuser.content | b64decode)
           - alpine_ludus_remote_tmp.stat.exists
