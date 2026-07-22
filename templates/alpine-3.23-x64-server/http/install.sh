@@ -43,6 +43,15 @@ addgroup localuser wheel || true
 echo "localuser:password" | chpasswd
 echo "root:password" | chpasswd
 
+# Ludus 2.3 runs range Ansible under its service account and resolves the
+# default remote staging path to /home/ludus/.ansible/tmp before connecting as
+# the template's localuser account. Other Linux templates already tolerate
+# that contract. Create the exact private staging tree here so Alpine can pass
+# fact gathering before any range role runs.
+mkdir -p /home/ludus/.ansible/tmp
+chown -R localuser:localuser /home/ludus
+chmod 0700 /home/ludus /home/ludus/.ansible /home/ludus/.ansible/tmp
+
 mkdir -p /etc/sudoers.d
 echo "localuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/localuser
 chmod 0440 /etc/sudoers.d/localuser
